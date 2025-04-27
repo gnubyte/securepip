@@ -19,7 +19,7 @@ SecurePip is a secure package installer and analyzer for Python that helps you s
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/securepip.git
+git clone https://github.com/gnubyte/securepip.git
 cd securepip
 
 # Run the installation script
