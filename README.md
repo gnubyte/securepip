@@ -2,6 +2,8 @@
 
 SecurePip is a secure package installer and analyzer for Python that helps you safely install and manage Python packages while providing detailed security analysis and vulnerability reports. It leverages Ollama & Gemma AI to use your local AI to do rudamentary security scans over your python dependencies as they install or provided a requirements.txt file.
 
+**This is in early development and is expiremental, especially for longer builds. Please report any issues as they are found. I have only tested this on OSX.**
+
 ## Features
 
 - 🔍 **Security Analysis**: Analyzes packages for vulnerabilities before installation
@@ -24,10 +26,12 @@ cd securepip
 ./install.sh
 ```
 
-### PyPI Installation (Coming Soon)
+### PyPI Installation 
+
+There is a naming conflict where pypi will not let you use pip or securepip as a name so the package name is installed as securepypy but called as securepip
 
 ```bash
-pip install securepip
+pip install securepypy
 ```
 
 ## Usage

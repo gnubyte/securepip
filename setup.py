@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="securepip",
-    version="0.1.0",
+    name="securepypy",
+    version="0.2.0",
     packages=find_packages(),
     install_requires=[
         "requests>=2.31.0",
+        "urllib3<2.0.0",
         "packaging>=23.2",
         "colorama>=0.4.6",
         "tqdm>=4.66.1",

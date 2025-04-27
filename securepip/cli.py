@@ -68,108 +68,27 @@ def _log_error(message: str, error: Optional[Exception] = None) -> None:
     print(error_msg, file=sys.stderr)
 
 def analyze_packages(args):
-    """Analyze packages for security issues."""
-    try:
-        # Initialize SecurePip with configuration
-        secure_pip = SecurePip(
-            no_cache=args.no_cache,
-            generate_report=True,  # Always generate reports for analyze command
-            model=args.model,
-            report_dir=args.report_dir
-        )
-        
-        # Read requirements file if specified
-        if args.requirement:
-            with open(args.requirement, 'r') as f:
-                packages = []
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        # Handle both package names and version specifications
-                        if '==' in line:
-                            name, version = line.split('==', 1)
-                            packages.append((name.strip(), version.strip()))
-                        else:
-                            packages.append((line.strip(), None))
-        else:
-            packages = [(pkg, None) for pkg in args.packages]
-        
-        if not packages:
-            print(f"{Fore.RED}Error: No packages specified for analysis{Style.RESET_ALL}")
-            return
-        
-        # Analyze each package
-        print(f"{Fore.CYAN}Starting analysis of {len(packages)} packages...{Style.RESET_ALL}")
-        
-        for package_name, version in packages:
-            print(f"\n{Fore.CYAN}Analyzing {package_name}{f'=={version}' if version else ''}...{Style.RESET_ALL}")
-            try:
-                analysis = secure_pip.analyze_package(package_name, version)
-                
-                # Print summary of findings
-                if analysis.get('vulnerabilities'):
-                    print(f"{Fore.RED}Vulnerabilities found:{Style.RESET_ALL}")
-                    for vuln in analysis['vulnerabilities']:
-                        print(f"  - {vuln.get('id', 'Unknown')}: {vuln.get('description', 'No description')}")
-                
-                if analysis.get('typosquatting_detected'):
-                    print(f"{Fore.YELLOW}Typosquatting detected:{Style.RESET_ALL}")
-                    print(f"  Confidence: {analysis.get('typosquatting_confidence', 'Unknown')}")
-                    print(f"  Potential targets: {', '.join(analysis.get('potential_targets', []))}")
-                
-                if analysis.get('malware_analysis', {}).get('detected'):
-                    print(f"{Fore.RED}Malware detected:{Style.RESET_ALL}")
-                    print(f"  Type: {analysis['malware_analysis'].get('type', 'Unknown')}")
-                    print(f"  Confidence: {analysis['malware_analysis'].get('confidence', 'Unknown')}")
-                
-                if analysis.get('privilege_analysis', {}).get('detected'):
-                    print(f"{Fore.RED}Privilege escalation detected:{Style.RESET_ALL}")
-                    print(f"  Type: {analysis['privilege_analysis'].get('type', 'Unknown')}")
-                    print(f"  Confidence: {analysis['privilege_analysis'].get('confidence', 'Unknown')}")
-                
-                if analysis.get('embedded_code_analysis', {}).get('detected'):
-                    print(f"{Fore.YELLOW}Embedded code detected:{Style.RESET_ALL}")
-                    print(f"  Type: {analysis['embedded_code_analysis'].get('type', 'Unknown')}")
-                    print(f"  Confidence: {analysis['embedded_code_analysis'].get('confidence', 'Unknown')}")
-                
-                if not any([
-                    analysis.get('vulnerabilities'),
-                    analysis.get('typosquatting_detected'),
-                    analysis.get('malware_analysis', {}).get('detected'),
-                    analysis.get('privilege_analysis', {}).get('detected'),
-                    analysis.get('embedded_code_analysis', {}).get('detected')
-                ]):
-                    print(f"{Fore.GREEN}No security issues detected{Style.RESET_ALL}")
-                
-            except Exception as e:
-                print(f"{Fore.RED}Error analyzing {package_name}: {str(e)}{Style.RESET_ALL}")
-                continue
-        
-        # Print final summary
-        print(f"\n{Fore.CYAN}Analysis complete!{Style.RESET_ALL}")
-        print(f"Total packages analyzed: {len(packages)}")
-        print(f"Vulnerable packages: {secure_pip.stats.vulnerable_packages}")
-        print(f"Malware detected: {secure_pip.stats.malware}")
-        print(f"Privilege escalation detected: {secure_pip.stats.privilege_escalation}")
-        print(f"Embedded code detected: {secure_pip.stats.embedded_code}")
-        print(f"Typosquatting detected: {secure_pip.stats.typosquatting_detected}")
-        print(f"Security issues found: {secure_pip.stats.security_issues}")
-        
-        # Print severity breakdown
-        print("\nSeverity breakdown:")
-        for severity, count in secure_pip.stats.by_severity.items():
-            print(f"  {severity}: {count}")
-        
-        # Print report location if generated
-        if secure_pip.generate_report:
-            report_path = secure_pip._generate_html_report()
-            print(f"\n{Fore.CYAN}Detailed report has been generated at:{Style.RESET_ALL}")
-            print(f"{Fore.GREEN}{report_path}{Style.RESET_ALL}")
-            print(f"\nYou can open this file in your web browser to view the full analysis report.")
-        
-    except Exception as e:
-        _log_error("Error during analysis", e)
-        return
+    """Analyze packages from requirements file or command line."""
+    secure_pip = SecurePip(
+        no_cache=args.no_cache,
+        generate_report=args.generate_report,
+        model=args.model,
+        report_dir=args.report_dir
+    )
+    
+    if args.requirements:
+        with open(args.requirements, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    package_name = line.split('==')[0].split('>=')[0].split('<=')[0]
+                    version = None
+                    if '==' in line:
+                        version = line.split('==')[1]
+                    secure_pip.analyze_package(package_name, version)
+    else:
+        for package in args.packages:
+            secure_pip.analyze_package(package)
 
 def install_packages(packages: List[tuple[str, Optional[str]]], args: argparse.Namespace):
     """Install multiple packages with their specified versions."""
@@ -185,93 +104,22 @@ def install_packages(packages: List[tuple[str, Optional[str]]], args: argparse.N
         secure_pip.install_package(package, version)
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Secure package installer with vulnerability analysis',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  securepip install requests
-  securepip install requests==2.31.0
-  securepip install -r requirements.txt
-  securepip install --report --force requests
-  securepip install --no-cache --model llama2:7b requests
-  securepip analyze -r requirements.txt
-        """
-    )
-    
-    subparsers = parser.add_subparsers(dest='command', help='Commands')
-    
-    # Common arguments for install and analyze commands
-    common_parser = argparse.ArgumentParser(add_help=False)
-    common_parser.add_argument('-r', '--requirement', help='Install from the given requirements file')
-    common_parser.add_argument('--force', action='store_true', help='Force operation despite warnings')
-    common_parser.add_argument('--no-cache', action='store_true', help='Disable analysis cache')
-    common_parser.add_argument('--model', help='Specify Ollama model to use')
-    
-    # Install command
-    install_parser = subparsers.add_parser('install', help='Install packages', parents=[common_parser])
-    install_parser.add_argument('packages', nargs='*', help='Package names to install')
-    install_parser.add_argument('--version', help='Specific version of the package to install')
-    install_parser.add_argument('--report', action='store_true', help='Generate HTML report')
-    
-    # Analyze command
-    analyze_parser = subparsers.add_parser('analyze', help='Analyze packages without installing (always generates report)', parents=[common_parser])
-    analyze_parser.add_argument('packages', nargs='*', help='Package names to analyze')
-    analyze_parser.add_argument('--version', help='Specific version of the package to analyze')
-    analyze_parser.add_argument('--report-dir', help='Directory to store analysis reports (default: ./reports)')
-    
-    # Other pip-like commands
-    subparsers.add_parser('list', help='List installed packages')
-    subparsers.add_parser('show', help='Show information about installed packages')
-    subparsers.add_parser('uninstall', help='Uninstall packages')
-    subparsers.add_parser('freeze', help='Output installed packages in requirements format')
+    """Main entry point for the CLI."""
+    parser = argparse.ArgumentParser(description='SecurePip - Security-focused package installer and analyzer')
+    parser.add_argument('packages', nargs='*', help='Packages to analyze')
+    parser.add_argument('-r', '--requirements', help='Requirements file to analyze')
+    parser.add_argument('--no-cache', action='store_true', help='Disable caching')
+    parser.add_argument('--generate-report', action='store_true', help='Generate HTML report')
+    parser.add_argument('--model', help='Ollama model to use for analysis')
+    parser.add_argument('--report-dir', help='Directory to save reports')
     
     args = parser.parse_args()
     
-    if args.command in ['install', 'analyze']:
-        packages_to_process = []
-        
-        if args.requirement:
-            packages_to_process.extend(parse_requirements_file(args.requirement))
-        
-        if args.packages:
-            for package in args.packages:
-                if '==' in package:
-                    pkg, ver = package.split('==', 1)
-                    packages_to_process.append((pkg, ver))
-                else:
-                    packages_to_process.append((package, args.version))
-        
-        if not packages_to_process:
-            print(f"{Fore.RED}Error: No packages specified for {args.command}{Style.RESET_ALL}")
-            sys.exit(1)
-        
-        if args.command == 'install':
-            install_packages(packages_to_process, args)
-        else:  # analyze
-            # For analyze command, always generate reports
-            args.report = True
-            analyze_packages(args)
-    
-    elif args.command == 'list':
-        # TODO: Implement list command
-        print("List command not yet implemented")
-    
-    elif args.command == 'show':
-        # TODO: Implement show command
-        print("Show command not yet implemented")
-    
-    elif args.command == 'uninstall':
-        # TODO: Implement uninstall command
-        print("Uninstall command not yet implemented")
-    
-    elif args.command == 'freeze':
-        # TODO: Implement freeze command
-        print("Freeze command not yet implemented")
-    
-    else:
+    if not args.packages and not args.requirements:
         parser.print_help()
         sys.exit(1)
+        
+    analyze_packages(args)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main() 
