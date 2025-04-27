@@ -1,0 +1,6 @@
+requests>=2.31.0
+pyyaml>=6.0.1
+tqdm>=4.66.1
+colorama>=0.4.6
+packaging>=23.2
+pip>=23.3.1 
