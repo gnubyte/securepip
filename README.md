@@ -1,6 +1,6 @@
 # SecurePip
 
-SecurePip is a secure package installer and analyzer for Python that helps you safely install and manage Python packages while providing detailed security analysis and vulnerability reports.
+SecurePip is a secure package installer and analyzer for Python that helps you safely install and manage Python packages while providing detailed security analysis and vulnerability reports. It leverages Ollama & Gemma AI to use your local AI to do rudamentary security scans over your python dependencies as they install or provided a requirements.txt file.
 
 ## Features
 
